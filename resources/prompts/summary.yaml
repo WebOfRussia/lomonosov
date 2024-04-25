@@ -1,0 +1,10 @@
+input_variables: [text]
+partial_variables:
+    combine_size: '3-5 предложений'
+template: 'Ты ИИ-ассистент в научной деятельности. 
+
+Суммаризируй данный текст научной статьи в параграф длиной {combine_size}:
+
+"{text}"'
+template_format: f-string
+_type: prompt

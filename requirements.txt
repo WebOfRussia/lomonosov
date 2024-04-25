@@ -1,0 +1,11 @@
+requests
+streamlit==1.33.0
+pandas==1.5.3
+gigachain
+langchain==0.1.16
+langchain_community==0.0.34
+langchain_core==0.1.45
+PyPDF2==3.0.1
+python-dotenv==1.0.1
+scikit_learn==1.4.2
+unstructured

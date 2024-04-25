@@ -1,0 +1,11 @@
+input_variables: [metadata]
+template: 'Ты ИИ-ассистент в научной деятельности. 
+
+Сгенерируй BibTex для данной научной статьи:
+
+"{metadata}"
+
+Верни BibTex в Markdown `@article...`
+'
+template_format: f-string
+_type: prompt

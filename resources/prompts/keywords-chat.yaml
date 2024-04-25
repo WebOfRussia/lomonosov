@@ -1,0 +1,12 @@
+input_variables: [text]
+messages:
+  - role: system
+    prompt:
+      template: 'Ты ИИ-ассистент в научной деятельности. 
+
+Сгенерируй ключевые слова к данной научной статье (используй только те, которые относятся к непосредственной тематике):'
+  - role: user
+    prompt:
+      template: '{text}'
+template_format: f-string
+_type: chat

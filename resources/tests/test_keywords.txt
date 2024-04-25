@@ -1,0 +1,1 @@
+глубокое обучение / извлечение именованных сущностей / bert / spaсy / deeppavlov / deep learning / named entity extraction

@@ -1,0 +1,12 @@
+version: '3'
+services:
+  lomonosov_streamlit:
+    restart: unless-stopped
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: lomonosov-streamlit
+    env_file:
+      - .env-prod
+    ports:
+      - 8501:8501
