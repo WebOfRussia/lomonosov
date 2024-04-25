@@ -4,7 +4,8 @@ from dotenv import load_dotenv
 
 
 if os.getenv("environment") != "production":
-    load_dotenv("./env")
+    print("TRUE", os.getcwd())
+    load_dotenv("./.env")
 
 logging.basicConfig(
     format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO
@@ -14,6 +15,8 @@ logger = logging.getLogger(__name__)
 
 # Авторизация в сервисе GigaChat
 AUTH_DATA = os.getenv("AUTH_DATA")
+
+print("+++++++++++", AUTH_DATA)
 
 system_prompt = """
 Ты ИИ ассистент по научной деятельности, специализирующийся на помощи исследователям и студентам в поиске и анализе научных статей. 
