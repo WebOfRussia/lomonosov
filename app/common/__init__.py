@@ -1,10 +1,28 @@
 import os
+import json
 import logging
-from dotenv import load_dotenv
+from sklearn.metrics.pairwise import cosine_similarity
 
 
+# Общие функции
+def save_file(file_dir, file):
+  with open(file_dir, 'w') as f:
+    f.write(file)
+
+def save_json(file_dir, file):
+  with open(file_dir, 'w') as f:
+    json.dump(file, f, ensure_ascii=False, indent=4)
+
+def top_k_similar(query_embedding, embeddings, k=5):
+  scores = []
+  for emb in embeddings:
+    scores.append(cosine_similarity([query_embedding], [emb]))
+  top_k_indices = sorted(range(len(scores)), key=lambda i: scores[i])[-k:]
+  return top_k_indices
+
+# workarouund for dev environment
 if os.getenv("environment") != "production":
-    print("TRUE", os.getcwd())
+    from dotenv import load_dotenv
     load_dotenv("./.env")
 
 logging.basicConfig(
@@ -16,8 +34,29 @@ logger = logging.getLogger(__name__)
 # Авторизация в сервисе GigaChat
 AUTH_DATA = os.getenv("AUTH_DATA")
 
-print("+++++++++++", AUTH_DATA)
+# Директории нужные
+DATA_PATH = os.path.join('.', 'resources', 'data_tmp')
+PROMPT_PATH = os.path.join('.', 'resources', 'prompts')
 
+# Заголовки для Киберленинки
+headers = {
+    'content-type': 'application/json',
+    'sec-fetch-dest': 'empty',
+    'sec-fetch-mode': 'cors',
+    'sec-fetch-site': 'same-origin'
+}
+
+# параметры для поиска
+CYBERLENINKA_SIZE = int(os.getenv("CYBERLENINKA_SIZE", 30))
+TOP_K_PAPERS = int(os.getenv("TOP_K_PAPERS", 3))
+
+# параметры для ЛЛМ
+MODEL = os.getenv("MODEL", "GigaChat-Pro-preview")
+SCOPE = os.getenv("SCOPE", "GIGACHAT_API_CORP")
+TEMPERATURE = float(os.getenv("TEMPERATURE", 0.1))
+TIMEOUT = int(os.getenv("TIMEOUT", 600))
+
+# Промпт для нашего агента
 system_prompt = """
 Ты ИИ ассистент по научной деятельности, специализирующийся на помощи исследователям и студентам в поиске и анализе научных статей. 
 У тебя есть доступ к обширнойбазе данных научных публикаций и ты должен помочь пользователям найти статьи, отвечающие их запросам.

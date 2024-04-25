@@ -1,6 +1,6 @@
+
 import os
 import glob
-import json
 import requests
 import PyPDF2
 from langchain.pydantic_v1 import BaseModel, Field
@@ -13,34 +13,8 @@ from langchain.text_splitter import (
 from langchain.prompts import load_prompt
 from langchain.chat_models.gigachat import GigaChat
 from langchain_community.embeddings.gigachat import GigaChatEmbeddings
-from sklearn.metrics.pairwise import cosine_similarity
-from app.common import AUTH_DATA
+from app.common import AUTH_DATA, DATA_PATH, PROMPT_PATH, CYBERLENINKA_SIZE, TOP_K_PAPERS, headers, save_file, save_json, top_k_similar, logger
 
-
-DATA_PATH = os.path.join('.', 'resources', 'data_tmp')
-PROMPT_PATH = os.path.join('.', 'resources', 'prompts')
-
-def save_file(file_dir, file):
-  with open(file_dir, 'w') as f:
-    f.write(file)
-
-def save_json(file_dir, file):
-  with open(file_dir, 'w') as f:
-    json.dump(file, f, ensure_ascii=False, indent=4)
-
-headers = {
-    'content-type': 'application/json',
-    'sec-fetch-dest': 'empty',
-    'sec-fetch-mode': 'cors',
-    'sec-fetch-site': 'same-origin'
-}
-
-def top_k_similar(query_embedding, embeddings, k=5):
-  scores = []
-  for emb in embeddings:
-    scores.append(cosine_similarity([query_embedding], [emb]))
-  top_k_indices = sorted(range(len(scores)), key=lambda i: scores[i])[-k:]
-  return top_k_indices
 
 class BibtexGeneratorInput(BaseModel):
     paper_metadata: str = Field(
@@ -63,7 +37,7 @@ class BibtexGeneratorTool(BaseTool):
         paper_metadata: str="",
         run_manager=None,
     ) -> str:
-        print("+++++", paper_metadata)
+        logger.info(f"Paper metadata: {paper_metadata}")
 
         result = self.chain.invoke(
             {
@@ -76,7 +50,6 @@ class BibtexGeneratorTool(BaseTool):
            "metadata": paper_metadata,
         }
         
-
 class SearchInput(BaseModel):
     search_query_general: str = Field(
         description="упрощённый поисковый запрос пользователя"
@@ -118,19 +91,21 @@ class PDFReaderTool(BaseTool):
         pdf_url: str="",
         run_manager=None,
     ) -> str:
-        print("+++", pdf_url)
+        logger.info(f"PDF URL: {pdf_url}")
+
         try:
             response = requests.get(pdf_url)
             response.raise_for_status()
         except requests.exceptions.HTTPError as errh:
-            print ("Http Error:",errh)
+            logger.error("Http Error: {errh}")
         except requests.exceptions.ConnectionError as errc:
-            print ("Error Connecting:",errc)
+            logger.error("Error Connecting: {errc}")
         except requests.exceptions.Timeout as errt:
-            print ("Timeout Error:",errt)
+            logger.error("Timeout Error: {errt}")
         except requests.exceptions.RequestException as err:
-            print ("Something went wrong with the request:",err)
+            logger.error("Something went wrong with the request: {err}")
 
+        # download and read the file
         with open('temp.pdf', 'wb') as f:
             f.write(response.content)
 
@@ -142,8 +117,8 @@ class PDFReaderTool(BaseTool):
             page = read_pdf.pages[page_number]
             text += page.extract_text()
 
-        # TODO: RAG
-        result = self.chain.invoke(
+        # invoke our chain
+        result = self.chain.invoke( # TODO: RAG
             {
                 "text": text[100:600] + text[-600:-100]
             }
@@ -184,6 +159,9 @@ class SearchPaperTool(BaseTool):
         search_query_raw: str="",
         run_manager=None,
     ) -> str:
+        logger.info("General search query: {search_query_general}. Raw search query: {search_query_raw}")
+
+        # Cleanup
         if not os.path.exists(DATA_PATH):
             os.makedirs(DATA_PATH)
 
@@ -191,30 +169,31 @@ class SearchPaperTool(BaseTool):
         for f in files:
             os.remove(f)
 
-        data = {
-            'mode': 'articles',
-            'q': search_query_general,
-            'size': 30,
-            'from': 0
-        }
+        logger.info("Quering cyberleninka...")
 
-        print("Quering cyberleninka")
-        response = requests.post(
-            'https://cyberleninka.ru/api/search',
-            headers=headers,
-            json=data
-        )
-        
-        print("++++++++++", search_query_general, search_query_raw)
+        # query Cyberleninka
+        try:
+            response = requests.post(
+                'https://cyberleninka.ru/api/search',
+                headers=headers,
+                json={'mode': 'articles', 'q': search_query_general, 'size': CYBERLENINKA_SIZE, 'from': 0}
+            )
+        except Exception as e:
+            logger.error(str(e))
+            return {
+                "markdown": "Ничего не найдено",
+                "metadata": ""
+            }
+
         # save articles locally
         save_json(os.path.join(DATA_PATH, search_query_general + ".json"), response.json()['articles'])
 
         for article in response.json()['articles']:
             annotation = article['annotation']
             link = article['link']
-
             save_file(os.path.join(DATA_PATH, link.replace("/", "_") + ".txt"), annotation)
         
+        # load the articles
         loader = DirectoryLoader(DATA_PATH, glob="*.txt")
         docs = loader.load()
 
@@ -223,24 +202,22 @@ class SearchPaperTool(BaseTool):
             chunk_overlap=25,
         )
         documents = text_splitter.split_documents(docs)
-
-        source_list = [doc.metadata['source'] for doc in documents]
         embedding_list = self.embeddings.embed_documents([doc.page_content for doc in documents])
 
-        top_k_indices = top_k_similar(self.embeddings.embed_query(search_query_raw), embedding_list, k=3)
+        # finding top-k similar articles from cyberleninka output
+        top_k_indices = top_k_similar(self.embeddings.embed_query(search_query_raw), embedding_list, k=TOP_K_PAPERS)
         top_k_articles = []
         for idx in top_k_indices:
             for article in response.json()['articles']:
                 if documents[idx].page_content in article['annotation']:
                     top_k_articles.append(article)
 
+        # generate markdown metadata and output
         markdown_output = []
         for article in top_k_articles:
             markdown_output.append(f"[{article['name']}](https://cyberleninka.ru{article['link']}/pdf)\n")
             markdown_output.append(f"**Авторы:** {', '.join(article['authors'])}\n")
-            #markdown_output.append(f"**Аннотация:**\n\n {article['annotation']}\n\n")
             markdown_output.append(f"<details><summary><b>Аннотация:</b></summary>\n\n {article['annotation']}\n\n</details>")
-            # markdown_output.append(f"**Аннотация:** \n```{article['annotation']}```\n")
             markdown_output.append(f"<b>Год публикации:</b> {article['year']}\n")
             markdown_output.append("------")
 
@@ -251,7 +228,6 @@ class SearchPaperTool(BaseTool):
             metadata_output.append(f"**Статья номер №:** {i + 1}\n")
             metadata_output.append(f"**Авторы:** {', '.join(article['authors'])}\n")
             metadata_output.append(f"**Название статьи:** {article['name']}\n")
-            # metadata_output.append(f"**Аннотация:** \n```{article['annotation']}```\n")
             metadata_output.append(f"**Год публикации:** {article['year']}\n")
             metadata_output.append(f"**Ссылка PDF:** https://cyberleninka.ru{article['link']}/pdf\n")
             metadata_output.append("------")

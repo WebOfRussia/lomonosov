@@ -9,27 +9,30 @@ _Современные поисковые системы для научной 
 
 ### Найди статью
 
-![Поиск статьи по заданной тематике или ключевым словам](./resources/img/find-paper.jpg)
+<img src="./resources/img/find-paper.jpg" alt="Поиск статьи по заданной тематике или ключевым словам" width="1000"/>
 
-Поиск статьи по заданной тематике или ключевым словам
+
+Поиск статьи по заданной тематике или ключевым словам.
+
+----
 
 ### Выводы по статье
 
-![Обобщение и извлечение основных выводов](./resources/img/outcomes-paper.jpg)
+<img src="./resources/img/outcomes-paper.jpg" alt="Обобщение и извлечение основных выводов" width="1000"/>
 
-Обобщение и извлечение основных выводов
+Обобщение и извлечение основных выводов.
+
+----
 
 ### Сгенерировать Bibtex entry
 
-![Генерация bibtex для цитирования](./resources/img/bibtex-paper.jpg)
+<img src="./resources/img/bibtex-paper.jpg" alt="Генерация bibtex для цитирования" width="1000"/>
 
-Генерация `bibtex` для цитирования
-
-### Прочитай статью по ссылке
-
-![Чтение и понимание статьи по внешней ссылке](./resources/img/read-paper.jpg)
+Генерация `bibtex` для цитирования, а также чтение и понимание статьи по внешней ссылке.
 
 Чтение и понимание статьи по внешней ссылке
+
+----
 
 ### И многое другое TO BE DONE...
 
@@ -71,6 +74,12 @@ pip install -r requirements.txt
 
 ```
 AUTH_DATA="GIGA_CHAT_API_KEY"
+temperature=0.1
+scope="GIGACHAT_API_CORP"
+model="GigaChat-Pro-preview"
+timeout=600
+CYBERLENINKA_SIZE=30
+TOP_K_PAPERS=3
 ```
 
 2. Run with Python
@@ -86,6 +95,12 @@ python3.10 -m streamlit run lomonosov.py
 ```
 environment=production
 AUTH_DATA="GIGA_CHAT_API_KEY"
+temperature=0.1
+scope="GIGACHAT_API_CORP"
+model="GigaChat-Pro-preview"
+timeout=600
+CYBERLENINKA_SIZE=30
+TOP_K_PAPERS=3
 ```
 
 2. Run with docker-compose
